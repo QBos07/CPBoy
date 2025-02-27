@@ -13,7 +13,7 @@ jobs:
       
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/QBos07/hollyhock-3
+      image: ghcr.io/classpaddev/hollyhock-3
       credentials:
        username: ${{ github.actor }}
        password: ${{ secrets.github_token }}
