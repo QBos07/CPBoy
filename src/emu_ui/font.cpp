@@ -5,7 +5,7 @@
 #include <sdk/calc/calc.hpp>
 #include "components.h"
 
-#define FONTBASE 0x8062F4C8
+#define FONTBASE 0x80633f50 // 0x8062F4C8
 #define DISPLAY_WIDTH		320
 #define DISPLAY_HEIGHT	528
 
