@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sdk/os/file.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/os/file.h>
+#include <sdk/os/debug.h>
 #include "error.h"
 #include "emulator.h"
 #include "../helpers/fileio.h"

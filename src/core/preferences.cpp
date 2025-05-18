@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <sdk/os/file.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/os/file.h>
+#include <sdk/os/debug.h>
 #include "../helpers/fileio.h"
 #include "../helpers/ini.h"
 #include "../helpers/functions.h"
@@ -85,8 +85,7 @@ uint8_t process_config_ini(char *ini_string, uint32_t len, struct gb_s *gb)
 
   if (interl_en)
   {
-    set_interlacing(gb, false); // Interlacing is currently not working and therefore defaults to disabled
-    // set_interlacing(gb, interl_en->value_int);
+    set_interlacing(gb, interl_en->value_int);
   }
 
   if (emu_speed)

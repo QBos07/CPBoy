@@ -90,7 +90,7 @@
 
 /* Adds more code to improve LCD rendering accuracy. */
 #ifndef PEANUT_GB_HIGH_LCD_ACCURACY
-# define PEANUT_GB_HIGH_LCD_ACCURACY 0
+# define PEANUT_GB_HIGH_LCD_ACCURACY 1
 #endif
 
 /* Use intrinsic functions. This may produce smaller and faster code. */

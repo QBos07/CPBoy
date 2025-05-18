@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sdk/os/input.hpp>
+#include <sdk/os/input.h>
+#include <sdk/os/mem.h>
 #include "../menu.h"
 #include "../../components.h"
 #include "../../colors.h"
@@ -11,11 +12,6 @@
 #include "../../input.h"
 #include "../../../core/error.h"
 #include "../../../helpers/macros.h"
-
-namespace hhk 
-{
-  #include <sdk/os/mem.hpp>
-}
 
 #define TAB_SAVES_TITLE           "Saves"
 

@@ -2,7 +2,10 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sdk/os/input.hpp>
+#include <sdk/os/input.h>
+#include <sdk/os/mem.h>
+#include <sdk/os/lcd.h>
+#include <sdk/os/debug.h>
 #include "../menu.h"
 #include "../../components.h"
 #include "../../colors.h"
@@ -13,11 +16,6 @@
 #include "../../../helpers/macros.h"
 #include "../../../helpers/fileio.h"
 #include "../../../helpers/functions.h"
-
-namespace hhk 
-{
-  #include <sdk/os/mem.hpp>
-}
 
 #define TAB_LOAD_TITLE            "Load"
 #define TAB_LOAD_ITEM_COUNT       20

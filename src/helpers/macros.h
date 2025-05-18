@@ -1,14 +1,15 @@
 #pragma once
 
+#include <sdk/calc/calc.h>
 #include "../core/preferences.h"
 
 #define XSTR(x)           STR(x)
 #define STR(x)            #x
 
-#define CPBOY_VERSION     "v0.3.0"
+#define CPBOY_VERSION     "v0.3.1"
 
-#define CAS_LCD_WIDTH     320 
-#define CAS_LCD_HEIGHT    528 
+#define CAS_LCD_WIDTH     ::width
+#define CAS_LCD_HEIGHT    ::height 
 
 #define MAX_FILENAME_LEN  200
 
@@ -16,7 +17,6 @@
 
 #define DIRECTORY_MAIN     "\\fls0\\CPBoy\\"
 #define DIRECTORY_ROM      DIRECTORY_MAIN "roms"
-#define DIRECTORY_BIN      DIRECTORY_MAIN "bin"
 
 #define EXTENSION_ROM     ".gb"
 

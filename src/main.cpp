@@ -22,8 +22,10 @@
  * IN THE SOFTWARE.
  */
 
-#include <appdef.hpp>
-#include <sdk/calc/calc.hpp>
+#include <type_traits>
+#include <cstring> 
+#include <appdef.h>
+#include <sdk/calc/calc.h>
 #include "cas/bootstrap.h"
 #include "core/emulator.h"
 #include "core/error.h"
@@ -35,11 +37,10 @@ APP_VERSION(CPBOY_VERSION)
 
 gb_s main_gb __attribute__((section(".oc_mem.y.data")));
 emu_preferences main_preferences __attribute__((section(".oc_mem.y.data")));
+std::remove_pointer_t<decltype(vram)> (*vram_backup)[width * height];
 
 int main() 
 {
-  calcInit();
-
   if (setup_cas())
   {
     error_crash_alert(get_error_string(errno));
@@ -53,7 +54,18 @@ int main()
   }
 
 end:
-  restore_cas(); 
-  calcEnd();
+  restore_cas();
   return 0;
+}
+
+extern "C" void calcInit()
+{
+  vram_backup = reinterpret_cast<decltype(vram_backup)>(new std::remove_pointer_t<decltype(vram_backup)>);
+  std::memcpy(*vram_backup, vram, sizeof(*vram_backup));
+}
+
+extern "C" void calcExit()
+{
+  std::memcpy(vram, *vram_backup, sizeof(*vram_backup));
+  delete[] vram_backup;
 }

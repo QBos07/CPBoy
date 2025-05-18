@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <sdk/os/file.h>
 
 template <typename T>
 T clamp(T val, T min, T max)
@@ -25,6 +26,6 @@ T hash_string(const char *str, T range)
 }
 
 char *itoa_leading_zeros(uint32_t val, char *str, uint8_t base, uint8_t digits);
-wchar_t *char_to_wchar(wchar_t *wstr, const char *str);
-char *wchar_to_char(char *str, const wchar_t *wstr);
+char_const16_t *char_to_char_const16(char_const16_t *wstr, const char *str);
+char *char_const16_to_char(char *str, const char_const16_t *wstr);
 uint32_t align_val(uint32_t val, uint32_t at);

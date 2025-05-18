@@ -11,9 +11,6 @@ You will need to have the [Hollyhock-3 CFW](https://github.com/ClasspadDev/holly
 ├── run.bin (Hollyhock launcher)
 ├── CPBoy.bin (Main CPBoy executable)
 └── CPBoy/
-    ├── bin/
-    |   ├── il.bin
-    |   └── y.bin
     └── roms/
         └── ** Put your roms in here **
 ``` 

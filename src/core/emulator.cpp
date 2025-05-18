@@ -1,18 +1,19 @@
 #include "emulator.h"
 
+#include <cstdint>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <sdk/calc/calc.hpp>
-#include <sdk/os/file.hpp>
-#include <sdk/os/input.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/calc/calc.h>
+#include <sdk/os/file.h>
+#include <sdk/os/input.h>
+#include <sdk/os/debug.h>
+#include <sdk/os/lcd.h>
 #include "controls.h"
 #include "cart_ram.h"
 #include "error.h"
 #include "frametimes.h"
 #include "peanut_gb.h"
-#include "../cas/display.h"
 #include "../cas/cpu/cmt.h"
 #include "../cas/cpu/cpg.h"
 #include "../cas/cpu/dmac.h"
@@ -26,12 +27,12 @@
 #define INPUT_NONE      0
 #define INPUT_OPEN_MENU 1
 
-#define STACK_PTR_ADDR  (void *)((uint32_t)Y_MEMORY_1 + (0x1000 - 4))
+#define STACK_PTR_ADDR  (void *)((uint32_t)Y_MEMORY_1 + 0x1000)
 
 /* Global arrays in OC-Memory */
 uint8_t gb_wram[WRAM_SIZE];
 uint8_t gb_vram[VRAM_SIZE] __attribute__((section(".oc_mem.x")));
-uint8_t gb_oam[OAM_SIZE] __attribute__((section(".oc_mem.y.dma")));
+uint8_t gb_oam[OAM_SIZE] __attribute__((section(".oc_mem.y.dma"), aligned(alignof(long))));
 uint8_t gb_hram_io[HRAM_IO_SIZE] __attribute__((section(".oc_mem.y.data")));
 
 uint8_t execution_handle_input(struct gb_s *gb)
@@ -143,7 +144,7 @@ void set_overclock(struct gb_s *gb, bool enabled)
 }
 
 // Draws scanline into framebuffer.
-void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
+void __attribute__((section(".oc_mem.il.text"), noinline)) lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
   const uint_fast8_t line)
 {
   emu_preferences *preferences = (emu_preferences *)gb->direct.priv;
@@ -151,28 +152,46 @@ void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
   // Wait for previous DMA to complete
   dma_wait(DMAC_CHCR_0);
 
-  if (unlikely(line == 0))
-  {
-    prepare_gb_lcd();
-  }
-
   // When emulator will be paused, render a full frame in vram
   if (unlikely(preferences->emulator_paused))
   {
-    for (uint16_t i = 0; i < LCD_WIDTH; i++)
+    if (!gb->direct.interlace)
     {
-      *(uint32_t *)&vram[(i * 2) + ((line * 2) * CAS_LCD_WIDTH)] = pixels[i];
-      *(uint32_t *)&vram[(i * 2) + (((line * 2) + 1) * CAS_LCD_WIDTH)] = pixels[i];
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2 + 1)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+      return;
+    }
+
+    if (line == 1)
+    {
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2 - 2)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+    }
+    if (line != 0)
+    {
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2 - 1)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+    }
+    memcpy(vram + (CAS_LCD_WIDTH * (line * 2)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+    memcpy(vram + (CAS_LCD_WIDTH * (line * 2 + 1)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+    if (line != LCD_WIDTH - 1)
+    {
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2 + 2)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
+    }
+    if (line == LCD_WIDTH - 2)
+    {
+      memcpy(vram + (CAS_LCD_WIDTH * (line * 2 + 3)), pixels, CAS_LCD_WIDTH * sizeof(*vram));
     }
 
     return;
   }
 
+  LCD_SetDrawingBounds(0, CAS_LCD_WIDTH - 1, line * 2, line * 2 + 1);
+  LCD_SendCommand(COMMAND_PREPARE_FOR_DRAW_DATA);
+
   // Initialize DMA settings
   dmac_chcr tmp_chcr = { .raw = 0 };
-  tmp_chcr.TS_0 = SIZE_32_0;
-  tmp_chcr.TS_1 = SIZE_32_1;
-  tmp_chcr.DM   = DAR_FIXED_SOFT;
+  tmp_chcr.TS_0 = SIZE_2_0;
+  tmp_chcr.TS_1 = SIZE_2_1;
+  tmp_chcr.DM   = DAR_FIXED_HARD;
   tmp_chcr.SM   = SAR_INCREMENT;
   tmp_chcr.RS   = AUTO;
   tmp_chcr.TB   = CYCLE_STEAL;
@@ -182,13 +201,29 @@ void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
   DMAC_CHCR_0->raw = 0;
   
   *DMAC_SAR_0   = (uint32_t)pixels;                            // P4 Area (OC-Memory) => Physical address is same as virtual
-  *DMAC_DAR_0   = (uint32_t)SCREEN_DATA_REGISTER & 0x1FFFFFFF; // P2 Area => Physical address is virtual with 3 ms bits cleared
-  *DMAC_TCR_0   = (CAS_LCD_WIDTH * 2) / 32 * 2;                // (Pixels per line * bytes per pixel) / dmac operation bytes * 2 lines      
-  *DMAC_TCRB_0  = ((CAS_LCD_WIDTH * 2 / 32) << 16) 
-    | (CAS_LCD_WIDTH * 2 / 32);
+  *DMAC_DAR_0   = (uint32_t)lcd_data_port & 0x1FFFFFFF; // P2 Area => Physical address is virtual with 3 ms bits cleared
+  *DMAC_TCR_0   = CAS_LCD_WIDTH * 2;                // (Pixels per line * bytes per pixel) / dmac operation bytes * 2 lines      
+  *DMAC_TCRB_0  = (CAS_LCD_WIDTH << 16) 
+    | CAS_LCD_WIDTH;
 
+  // make sure we can acces it from ram
+  for (size_t i = 0; i < (CAS_LCD_WIDTH * 2); i += 32)
+  {
+    __asm__ volatile ("ocbwb @%0" : : "r"((uintptr_t)pixels + i));
+  }
+  __asm__ volatile ("ocbwb @%0" : : "r"((uintptr_t)pixels + (CAS_LCD_WIDTH * 2) - 1));
+  
+  
   // Start Channel 0
   DMAC_CHCR_0->raw = tmp_chcr.raw;
+  /*for (uint16_t i = 0; i < LCD_WIDTH; i++) {
+    *lcd_data_port = (uint16_t)pixels[i];
+    *lcd_data_port = (uint16_t)(pixels[i] >> 16);
+  }
+  for (uint16_t i = 0; i < LCD_WIDTH; i++) {
+    *lcd_data_port = (uint16_t)pixels[i];
+    *lcd_data_port = (uint16_t)(pixels[i] >> 16);
+  }*/
 }
 
 // Handles an error reported by the emulator. The emulator context may be used
@@ -319,7 +354,7 @@ uint8_t close_rom(struct gb_s *gb)
   return return_code;
 }
 
-uint8_t execute_rom(struct gb_s *gb) 
+uint8_t __attribute__((section(".oc_mem.il.text"), noinline, optimize("Os"))) execute_rom(struct gb_s *gb) 
 {
   emu_preferences *preferences = (emu_preferences *)gb->direct.priv;
   frametime_counter_set(gb);
@@ -334,13 +369,9 @@ uint8_t execute_rom(struct gb_s *gb)
       gb_tick_rtc(gb);
     }
 
-    void *tmp_stack_ptr_bak = get_stack_ptr(); 
-    set_stack_ptr(STACK_PTR_ADDR);
-
     // Run CPU until next frame
-    gb_run_frame(gb);
-
-    set_stack_ptr(tmp_stack_ptr_bak);
+    on_alt_stack(STACK_PTR_ADDR, (void (*)(void *))gb_run_frame, (void *)gb);
+    //gb_run_frame(gb);
 
     frametime_counter_wait(gb);
 
@@ -399,7 +430,7 @@ uint8_t run_emulator(struct gb_s *gb, emu_preferences *prefs)
     if (prepare_emulator(gb, prefs) != 0)
     {
       return 1;
-    }    
+    }
     
     // Render preview of menu
     fillScreen(0x0000);

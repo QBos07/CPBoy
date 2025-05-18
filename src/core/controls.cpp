@@ -1,8 +1,8 @@
 #include "controls.h"
 
-#include <sdk/os/file.hpp>
-#include <sdk/os/debug.hpp>
-#include <sdk/calc/calc.hpp>
+#include <sdk/os/file.h>
+#include <sdk/os/debug.h>
+#include <sdk/calc/calc.h>
 #include "preferences.h"
 #include "emulator.h"
 #include "error.h"

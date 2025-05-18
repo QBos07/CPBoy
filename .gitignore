@@ -5,11 +5,12 @@
 peanut-sdl
 peanut-debug
 tags
-.vscode
+.cache
+compile_commands.json
 obj
 dist
-*.hhk
-*.bin
+*.elf
+*.hh3
 
 # OS items
 .DS_Store

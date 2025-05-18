@@ -33,6 +33,7 @@
 #pragma once
 
 #include "peanut_gb_header.h"
+#include <cstdint>
 #include <stdint.h>	/* Required for int types */
 #include <string.h>
 #include "../helpers/macros.h"
@@ -40,8 +41,8 @@
 #include "../cas/cpu/dmac.h"
 #include "../cas/cpu/mmu.h"
 
-#include <sdk/os/debug.hpp>
-#include <sdk/os/lcd.hpp>
+#include <sdk/os/debug.h>
+#include <sdk/os/lcd.h>
 
 #define PEANUT_GB_IS_LITTLE_ENDIAN 0
 
@@ -89,7 +90,7 @@
 
 /* Adds more code to improve LCD rendering accuracy. */
 #ifndef PEANUT_GB_HIGH_LCD_ACCURACY
-# define PEANUT_GB_HIGH_LCD_ACCURACY 0
+# define PEANUT_GB_HIGH_LCD_ACCURACY 1
 #endif
 
 /* Use intrinsic functions. This may produce smaller and faster code. */
@@ -397,8 +398,8 @@
 #define IO_STAT_MODE_SEARCH_TRANSFER	3
 #define IO_STAT_MODE_VBLANK_OR_TRANSFER_MASK 0x1
 
-/* Two pixel arrays for double buffering */
-uint32_t lcd_pixels[2][LCD_WIDTH] __attribute__((section(".oc_mem.y.dma")));
+/* four pixel arrays for double buffering and interlacing */
+uint32_t lcd_pixels[4][LCD_WIDTH] __attribute__((section(".oc_mem.y.dma"), aligned(32)));
 
 void __attribute__((section(".oc_mem.il.text"))) __set_rom_bank(struct gb_s *gb)
 {
@@ -445,12 +446,14 @@ void __attribute__((section(".oc_mem.il.text"))) __set_cram_bank(struct gb_s *gb
 	gb->memory_map[0xB] = gb->memory_map[0xA] + 0x1000;
 }
 
-void __attribute__((section(".oc_mem.il.text"))) __gb_dma(struct gb_s *gb, uint16_t addr)
+void /*__attribute__((section(".oc_mem.il.text")))*/ __gb_dma(struct gb_s *gb, uint16_t addr)
 {
-  dma_wait(DMAC_CHCR_1);
+	// take more precausions before reabeling.
+
+  //dma_wait(DMAC_CHCR_1);
 
   /* Start DMA operation on Channel 1 */
-  dmac_chcr tmp_chcr = { .raw = 0 };
+  /*dmac_chcr tmp_chcr = { .raw = 0 };
   tmp_chcr.TS_0 = SIZE_16x2_0;
   tmp_chcr.TS_1 = SIZE_16x2_1;
   tmp_chcr.DM   = DAR_INCREMENT;
@@ -468,14 +471,16 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_dma(struct gb_s *gb, uint1
   *DMAC_DAR_1 = (uint32_t)gb->oam; // Will be in P4 Area => Physical address is same as virtual
   *DMAC_TCR_1 = OAM_SIZE / 32;      
 
-  DMAC_CHCR_1->raw = tmp_chcr.raw;
+  DMAC_CHCR_1->raw = tmp_chcr.raw;*/
+
+  memcpy(gb->oam, gb->memory_map[PEANUT_GB_GET_MSN16(addr)] + (addr & 0xF00), OAM_SIZE);
 }
 
 /**
  * Internal function used to read bytes.
  * addr is host platform endian.
  */
-uint8_t __attribute__((section(".oc_mem.il.text"))) __gb_read(struct gb_s *gb, uint16_t addr)
+uint8_t __attribute__((section(".oc_mem.il.text"), noinline)) __gb_read(struct gb_s *gb, uint16_t addr)
 {
 	if (PEANUT_GB_GET_MSN16(addr) == 0xF)
 	{
@@ -521,7 +526,7 @@ normal_read:
 /**
  * Internal function used to write bytes.
  */
-void __attribute__((section(".oc_mem.il.text"))) __gb_write(struct gb_s *gb, uint_fast16_t addr, uint8_t val)
+void __attribute__((section(".oc_mem.il.text"), noinline)) __gb_write(struct gb_s *gb, uint_fast16_t addr, uint8_t val)
 {
 	switch(PEANUT_GB_GET_MSN16(addr))
 	{
@@ -1013,13 +1018,9 @@ struct sprite_data {
 };
 
 #if PEANUT_GB_HIGH_LCD_ACCURACY
-static int compare_sprites(const void *in1, const void *in2)
+static int compare_sprites(const struct sprite_data *sd1, const struct sprite_data *sd2)
 {
-	const struct sprite_data *sd1, *sd2;
 	int x_res;
-
-	sd1 = (struct sprite_data *)in1;
-	sd2 = (struct sprite_data *)in2;
 	x_res = (int)sd1->x - (int)sd2->x;
 	if(x_res != 0)
 		return x_res;
@@ -1028,13 +1029,13 @@ static int compare_sprites(const void *in1, const void *in2)
 }
 #endif
 
-void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
+void __attribute__((section(".oc_mem.il.text"), noinline, optimize("Os"))) __gb_draw_line(struct gb_s *gb)
 {
 	emu_preferences *preferences = (emu_preferences *)gb->direct.priv;
 	palette selected_palette = preferences->palettes[preferences->config.selected_palette];
 
 	/* Select which buffer to use for the current line */
-	uint32_t *pixels = lcd_pixels[gb->hram_io[IO_LY] % 2];
+	uint32_t *pixels = lcd_pixels[gb->hram_io[IO_LY] % 4];
 
 	/* If LCD not initialised by front-end, don't render anything. */
 	if(gb->display.lcd_draw_line == NULL)
@@ -1220,13 +1221,13 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 #if PEANUT_GB_HIGH_LCD_ACCURACY
 		uint8_t number_of_sprites = 0;
 
-		struct sprite_data sprites_to_render[NUM_SPRITES];
+		struct sprite_data sprites_to_render[MAX_SPRITES_LINE];
 
 		/* Record number of sprites on the line being rendered, limited
 		 * to the maximum number sprites that the Game Boy is able to
 		 * render on each line (10 sprites). */
 		for(sprite_number = 0;
-				sprite_number < PEANUT_GB_ARRAYSIZE(sprites_to_render);
+				sprite_number < NUM_SPRITES;
 				sprite_number++)
 		{
 			/* Sprite Y position. */
@@ -1240,18 +1241,27 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 					|| gb->hram_io[IO_LY] + 16 < OY)
 				continue;
 
+			struct sprite_data current;
+			current.sprite_number = sprite_number;
+			current.x = OX;
 
-			sprites_to_render[number_of_sprites].sprite_number = sprite_number;
-			sprites_to_render[number_of_sprites].x = OX;
-			number_of_sprites++;
+			uint8_t place;
+			for (place = number_of_sprites; place != 0; place--)
+			{
+				if(compare_sprites(&sprites_to_render[place - 1], &current) >= 0)
+					break;
+			}
+			if(place > MAX_SPRITES_LINE)
+				continue;
+			memmove(
+				&sprites_to_render[place + 1],
+				&sprites_to_render[place],
+				(MAX_SPRITES_LINE - place - 1) * sizeof(current)
+			);
+			if(number_of_sprites <= MAX_SPRITES_LINE)
+				number_of_sprites++;
+			sprites_to_render[place] = current;
 		}
-
-		/* If maximum number of sprites reached, prioritise X
-		 * coordinate and object location in OAM. */
-		qsort(&sprites_to_render[0], number_of_sprites,
-				sizeof(sprites_to_render[0]), compare_sprites);
-		if(number_of_sprites > MAX_SPRITES_LINE)
-			number_of_sprites = MAX_SPRITES_LINE;
 #endif
 
 		/* Render each sprite, from low priority to high priority. */
@@ -1330,7 +1340,7 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 				uint8_t c = (t1 & 0x1) | ((t2 & 0x1) << 1);
 				// check transparency / sprite overlap / background overlap
 
-				if(c && !(OF & OBJ_PRIORITY && !((pixels[disp_x] & 0xFFFF) == selected_palette.data[LCD_PALETTE_BG >> 2][gb->display.bg_palette[0]])))
+				if((c && !(OF & OBJ_PRIORITY && !((pixels[disp_x] & 0xFFFF) == selected_palette.data[LCD_PALETTE_BG >> 2][gb->display.bg_palette[0]]))))
 				{
 					/* Set pixel colour. */
 					pixels[disp_x] = (OF & OBJ_PALETTE)
@@ -3021,13 +3031,12 @@ void __gb_step_cpu(struct gb_s *gb)
 				/* If interlaced is activated, change which lines get
 				 * updated. Also, only update lines on frames that are
 				 * actually drawn when frame skip is enabled. */
-				// if(gb->direct.interlace &&
-				// 	(!gb->direct.frame_skip ||
-				// 		gb->display.frame_skip_count))
-				// {
-				// 	gb->display.interlace_count =
-				// 		!gb->display.interlace_count;
-				// }
+				if(gb->direct.interlace &&
+					(!gb->direct.frame_skip ||
+						gb->direct.frame_drawn))
+				{
+					gb->display.interlace_count ^= 1;
+				}
 #endif
 			}
 			/* Normal Line */
@@ -3083,7 +3092,7 @@ void __gb_step_cpu(struct gb_s *gb)
 	/* If halted, loop until an interrupt occurs. */
 }
 
-void __attribute__((section(".oc_mem.il.text"))) gb_run_frame(struct gb_s *gb)
+void gb_run_frame(struct gb_s *gb)
 {
 	gb->gb_frame = 0;
 

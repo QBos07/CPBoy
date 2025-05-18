@@ -2,65 +2,54 @@
 # The .hhk file is the original format, the bin file is a newer format.
 APP_NAME:=CPBoy
 
-ifndef SDK_DIR
-$(error You need to define the SDK_DIR environment variable, and point it to the sdk/ folder)
-endif
+SDK_DIR?=/sdk
 
-AS:=sh4aeb-elf-gcc
+AS:=sh4a_nofpueb-elf-gcc
 AS_FLAGS:=
 
-COMMON_FLAGS:=-fshort-wchar -O2 -m4a-nofpu -ffunction-sections -fdata-sections #-flto
+COMMON_FLAGS:=-Ofast -gdwarf-5 -ffunction-sections -fdata-sections -flto=auto -ffat-lto-objects #-fstack-protector-all
 INCLUDES:=-I $(SDK_DIR)/include/
 WARNINGS:=-Wall -Wextra
 
-CC:=sh4aeb-elf-gcc
+CC:=sh4a_nofpueb-elf-gcc
 CC_FLAGS:=$(COMMON_FLAGS) $(INCLUDES) $(WARNINGS)
 
-CXX:=sh4aeb-elf-g++
+CXX:=sh4a_nofpueb-elf-g++
 CXX_FLAGS:=-fno-exceptions -fno-rtti -Wno-write-strings $(COMMON_FLAGS) $(INCLUDES) $(WARNINGS)
 
 LD:=$(CXX)
-LD_FLAGS:= $(COMMON_FLAGS) $(WARNINGS) -Wno-undef -Wl,--gc-sections
+LD_FLAGS:=$(COMMON_FLAGS) $(WARNINGS) -Wno-undef -Wl,--gc-sections #-fno-lto -v
 
-READELF:=sh4aeb-elf-readelf
-OBJCOPY:=sh4aeb-elf-objcopy
+READELF:=sh4a_nofpueb-elf-readelf
+OBJCOPY:=sh4a_nofpueb-elf-objcopy
+STRIP:=sh4a_nofpueb-elf-strip
 
 SOURCEDIR = src
 BUILDDIR = obj
 OUTDIR = dist
-BINDIR = $(OUTDIR)/CPBoy/bin
 
-AS_SOURCES:=$(shell find $(SOURCEDIR) -name '*.s')
+AS_SOURCES:=$(shell find $(SOURCEDIR) -name '*.S')
 CC_SOURCES:=$(shell find $(SOURCEDIR) -name '*.c')
 CXX_SOURCES:=$(shell find $(SOURCEDIR) -name '*.cpp')
-OBJECTS := $(addprefix $(BUILDDIR)/,$(AS_SOURCES:.s=.o)) \
+OBJECTS := $(addprefix $(BUILDDIR)/,$(AS_SOURCES:.S=.o)) \
 	$(addprefix $(BUILDDIR)/,$(CC_SOURCES:.c=.o)) \
 	$(addprefix $(BUILDDIR)/,$(CXX_SOURCES:.cpp=.o))
 
+APP_HH3:=$(OUTDIR)/$(APP_NAME).hh3
 APP_ELF:=$(OUTDIR)/$(APP_NAME).elf
-APP_BIN:=$(OUTDIR)/$(APP_NAME).bin
-IL_BIN:=$(BINDIR)/il.bin
-Y_BIN:=$(BINDIR)/y.bin
 
-bin: $(APP_BIN) $(IL_BIN) $(Y_BIN) Makefile
+.DEFAULT_GOAL=all
 
-hhk: $(APP_ELF) Makefile
+hh3: $(APP_HH3) Makefile
+elf: $(APP_ELF) Makefile
 
-all: $(APP_ELF) $(APP_BIN) $(IL_BIN) $(Y_BIN) Makefile
+all: $(APP_ELF) $(APP_HH3) Makefile
 
 clean:
 	rm -rf $(BUILDDIR) $(OUTDIR)
 
-$(APP_BIN): $(APP_ELF)
-	$(OBJCOPY) --remove-section=.oc_mem* --set-section-flags .bss=alloc,load,contents,data --output-target=binary $(APP_ELF) $@
-
-$(IL_BIN): $(APP_ELF)
-	mkdir -p $(dir $@)
-	$(OBJCOPY) --only-section=.oc_mem.il* --output-target=binary $(APP_ELF) $@
-	
-$(Y_BIN): $(APP_ELF)
-	mkdir -p $(dir $@)
-	$(OBJCOPY) --only-section=.oc_mem.y* --output-target=binary $(APP_ELF) $@
+%.hh3: %.elf
+	$(STRIP) -o $@ $^
 
 $(APP_ELF): $(OBJECTS) $(SDK_DIR)/libsdk.a linker.ld
 	mkdir -p $(dir $@)
@@ -72,7 +61,7 @@ $(APP_ELF): $(OBJECTS) $(SDK_DIR)/libsdk.a linker.ld
 $(SDK_DIR)/libsdk.a:
 	@echo "You need to build the SDK before using it. Run make in the SDK directory, and check the README.md in the SDK directory for more information" && exit 1
 
-$(BUILDDIR)/%.o: %.s
+$(BUILDDIR)/%.o: %.S
 	mkdir -p $(dir $@)
 	$(AS) -c $< -o $@ $(AS_FLAGS)
 
@@ -88,6 +77,5 @@ $(BUILDDIR)/%.o: %.c
 $(BUILDDIR)/%.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) -c $< -o $@ $(CXX_FLAGS)
-	@$(READELF) $@ -S | grep ".ctors" > /dev/null && echo "ERROR: Global constructors aren't supported." && rm $@ && exit 1 || exit 0
 
-.PHONY: bin hhk all clean
+.PHONY: elf hh3 all clean

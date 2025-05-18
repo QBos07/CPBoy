@@ -3,8 +3,10 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sdk/os/input.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/os/input.h>
+#include <sdk/os/debug.h>
+#include <sdk/os/mem.h>
+#include <sdk/os/lcd.h>
 #include "../menu.h"
 #include "../../components.h"
 #include "../../colors.h"
@@ -13,11 +15,7 @@
 #include "../../input.h"
 #include "../../../core/error.h"
 #include "../../../helpers/macros.h"
-
-namespace hhk 
-{
-  #include <sdk/os/mem.hpp>
-}
+#include "sdk/calc/calc.h"
 
 #define TAB_SETTINGS_TITLE        "Settings"
 #define TAB_SETTINGS_DESCRIPTION  "Settings"
@@ -124,7 +122,7 @@ void draw_controls_alert(emu_preferences *preferences, uint8_t selected_item)
     // Draw button title
     switch (preferences->controls[i][0])
     {
-      case KEY_SHIFT:
+      case (unsigned int)KEY_SHIFT:
 				strcpy(title, CAS_KEY_TEXT_SHIFT);
 				break;
 			case KEY_CLEAR:
@@ -179,7 +177,7 @@ void draw_controls_alert(emu_preferences *preferences, uint8_t selected_item)
 
     switch (preferences->controls[i][1])
     {
-      case KEY_KEYBOARD:
+      case (unsigned int)KEY_KEYBOARD:
 				strcpy(title, CAS_KEY_TEXT_KEYBOARD);
 				break;
 			case KEY_UP:

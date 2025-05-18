@@ -2,16 +2,11 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <sdk/os/debug.hpp>
+#include <sdk/os/debug.h>
+#include <sdk/os/mem.h>
 #include "../core/error.h"
 #include "../emu_ui/font.h"
 #include "../helpers/functions.h"
-
-// Use namespace because of conflicting function declarations in mem.hpp and string.h
-namespace hhk
-{
-  #include <sdk/os/mem.hpp>
-}
 
 #define TMP_STRING_LEN        INI_MAX_VALUE_LEN
 #define INI_LINE_TYPE_SECTION 0
