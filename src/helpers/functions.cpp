@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <sdk/os/file.h>
 
-wchar_t *char_to_wchar(wchar_t *wstr, const char *str)
+char_const16_t *char_to_char_const16(char_const16_t *wstr, const char *str)
 {
-  wchar_t *dest = wstr;
+  char_const16_t *dest = wstr;
 
   for (const char *c = str; *c; c++, dest++)
   {
@@ -18,11 +19,11 @@ wchar_t *char_to_wchar(wchar_t *wstr, const char *str)
   return wstr;
 }
 
-char *wchar_to_char(char *str, const wchar_t *wstr)
+char *char_const16_to_char(char *str, const char_const16_t *wstr)
 {
   char *dest = str;
 
-  for (const wchar_t *c = wstr; *c; c++, dest++)
+  for (const char_const16_t *c = wstr; *c; c++, dest++)
   {
     *dest = *c;
   }

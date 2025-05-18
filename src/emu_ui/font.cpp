@@ -2,12 +2,13 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <sdk/calc/calc.hpp>
+#include <sdk/calc/calc.h>
+#include <sdk/os/debug.h>
 #include "components.h"
 
-#define FONTBASE 0x80633f50 // 0x8062F4C8
-#define DISPLAY_WIDTH		320
-#define DISPLAY_HEIGHT	528
+#define FONTBASE ::DEBUG_FONTBASE
+#define DISPLAY_WIDTH		::width
+#define DISPLAY_HEIGHT	::height
 
 char hex_chars[17] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 	'A', 'B', 'C', 'D', 'E', 'F' };
@@ -132,7 +133,7 @@ void print_char(char character, uint16_t x, uint16_t y, uint8_t size,
 	}
 
 	// now draw the character
-	uint16_t *pixel = (uint16_t *)(FONTBASE + (0xC0 * charIndex));
+	uint16_t *pixel = (uint16_t *)(FONTBASE + (DEBUG_CHAR_WIDTH * DEBUG_CHAR_HEIGHT * charIndex));
 
 	uint16_t tempXPos = x;
 	uint16_t tempYPos = y + 1;

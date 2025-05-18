@@ -1,8 +1,9 @@
 #include "input.h"
 
 #include <stdint.h>
-#include <sdk/os/input.hpp>
-#include <sdk/calc/calc.hpp>
+#include <sdk/os/input.h>
+#include <sdk/calc/calc.h>
+#include <sdk/os/lcd.h>
 #include "menu/menu.h"
 
 uint32_t key_streak;  // Holds the streak amount

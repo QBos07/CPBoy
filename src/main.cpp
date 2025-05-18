@@ -22,11 +22,13 @@
  * IN THE SOFTWARE.
  */
 
-#include <appdef.hpp>
-#include <sdk/calc/calc.hpp>
+#include <appdef.h>
+#include <sdk/calc/calc.h>
 #include "cas/bootstrap.h"
 #include "core/emulator.h"
 #include "core/error.h"
+#include "sdk/os/debug.h"
+#include "sdk/os/lcd.h"
 
 APP_NAME("CPBoy")
 APP_DESCRIPTION("A Gameboy (DMG) emulator. Forked from PeanutGB by deltabeard.")
@@ -38,8 +40,6 @@ emu_preferences main_preferences __attribute__((section(".oc_mem.y.data")));
 
 int main() 
 {
-  calcInit();
-
   if (setup_cas())
   {
     error_crash_alert(get_error_string(errno));
@@ -53,7 +53,6 @@ int main()
   }
 
 end:
-  restore_cas(); 
-  calcEnd();
+  restore_cas();
   return 0;
 }

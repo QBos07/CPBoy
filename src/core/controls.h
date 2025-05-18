@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <sdk/calc/calc.hpp>
+#include <sdk/calc/calc.h>
 #include "../core/peanut_gb_header.h"
 
 #define DEFAULT_GB_KEY_A_0      KEY_EXE

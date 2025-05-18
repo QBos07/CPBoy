@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <sdk/os/file.hpp>
-#include <sdk/os/mcs.hpp>
+#include <sdk/os/file.h>
+#include <sdk/os/mcs.h>
 #include "../core/error.h"
 #include "functions.h"
 
@@ -36,7 +36,7 @@ uint8_t _read_mcs(const char *dir, const char *name, void **buf, uint32_t *size,
   const char *err_file, uint32_t err_line)
 {
   char *name2;
-  uint8_t var_type;
+  MCS_VariableType var_type;
 
   int32_t ret = MCS_GetVariable(dir, name, &var_type, &name2, buf, size);
 
@@ -173,14 +173,14 @@ uint8_t find_files(const char *path, char (*buf)[MAX_FILENAME_LEN], uint8_t max)
     return 0;
   }
 
-  wchar_t wpath[MAX_FILENAME_LEN];
-  wchar_t filename[MAX_FILENAME_LEN];
+  char_const16_t wpath[MAX_FILENAME_LEN];
+  char_const16_t filename[MAX_FILENAME_LEN];
 	struct File_FindInfo info;
 	int handle;
   int32_t ret;
 	uint8_t file_count = 0;
 
-  char_to_wchar(wpath, path);
+  char_to_char_const16(wpath, path);
 
 	ret = File_FindFirst(wpath, &handle, filename, &info);
 
@@ -193,7 +193,7 @@ uint8_t find_files(const char *path, char (*buf)[MAX_FILENAME_LEN], uint8_t max)
       if (filename[0] != '.')
       {
         // Copy file name
-        wchar_to_char(buf[file_count], filename);
+        char_const16_to_char(buf[file_count], filename);
         file_count++;
       }
     }

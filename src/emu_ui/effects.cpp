@@ -1,11 +1,11 @@
 #include "effects.h"
 
 #include <stdint.h>
-#include <sdk/os/lcd.hpp>
-#include <sdk/calc/calc.hpp>
+#include <sdk/os/lcd.h>
+#include <sdk/calc/calc.h>
 
-#define CAS_LCD_WIDTH  320 
-#define CAS_LCD_HEIGHT 528 
+#define CAS_LCD_WIDTH  ::width 
+#define CAS_LCD_HEIGHT ::height 
 
 #define EFFECT_DARKEN  13108 
 

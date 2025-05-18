@@ -33,6 +33,7 @@
 #pragma once
 
 #include "peanut_gb_header.h"
+#include <cstdint>
 #include <stdint.h>	/* Required for int types */
 #include <string.h>
 #include "../helpers/macros.h"
@@ -40,8 +41,8 @@
 #include "../cas/cpu/dmac.h"
 #include "../cas/cpu/mmu.h"
 
-#include <sdk/os/debug.hpp>
-#include <sdk/os/lcd.hpp>
+#include <sdk/os/debug.h>
+#include <sdk/os/lcd.h>
 
 #define PEANUT_GB_IS_LITTLE_ENDIAN 0
 
@@ -89,7 +90,7 @@
 
 /* Adds more code to improve LCD rendering accuracy. */
 #ifndef PEANUT_GB_HIGH_LCD_ACCURACY
-# define PEANUT_GB_HIGH_LCD_ACCURACY 0
+# define PEANUT_GB_HIGH_LCD_ACCURACY 1
 #endif
 
 /* Use intrinsic functions. This may produce smaller and faster code. */
@@ -398,7 +399,7 @@
 #define IO_STAT_MODE_VBLANK_OR_TRANSFER_MASK 0x1
 
 /* Two pixel arrays for double buffering */
-uint32_t lcd_pixels[2][LCD_WIDTH] __attribute__((section(".oc_mem.y.dma")));
+uint32_t lcd_pixels[2][LCD_WIDTH] __attribute__((section(".oc_mem.y.dma"), aligned(32)));
 
 void __attribute__((section(".oc_mem.il.text"))) __set_rom_bank(struct gb_s *gb)
 {
@@ -1013,13 +1014,9 @@ struct sprite_data {
 };
 
 #if PEANUT_GB_HIGH_LCD_ACCURACY
-static int compare_sprites(const void *in1, const void *in2)
+static int compare_sprites(const struct sprite_data *sd1, const struct sprite_data *sd2)
 {
-	const struct sprite_data *sd1, *sd2;
 	int x_res;
-
-	sd1 = (struct sprite_data *)in1;
-	sd2 = (struct sprite_data *)in2;
 	x_res = (int)sd1->x - (int)sd2->x;
 	if(x_res != 0)
 		return x_res;
@@ -1220,7 +1217,7 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 #if PEANUT_GB_HIGH_LCD_ACCURACY
 		uint8_t number_of_sprites = 0;
 
-		struct sprite_data sprites_to_render[NUM_SPRITES];
+		struct sprite_data sprites_to_render[MAX_SPRITES_LINE];
 
 		/* Record number of sprites on the line being rendered, limited
 		 * to the maximum number sprites that the Game Boy is able to
@@ -1240,18 +1237,23 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 					|| gb->hram_io[IO_LY] + 16 < OY)
 				continue;
 
+			struct sprite_data current;
+			current.sprite_number = sprite_number;
+			current.x = OX;
 
-			sprites_to_render[number_of_sprites].sprite_number = sprite_number;
-			sprites_to_render[number_of_sprites].x = OX;
-			number_of_sprites++;
+			uint8_t place;
+			for (place = number_of_sprites; place != 0; place--) {
+				if(likely(compare_sprites(&(sprites_to_render[place - 1]), &current) >= 0))
+					break;
+			}
+			if (likely(place >= MAX_SPRITES_LINE))
+				continue;
+			// insert
+			if(number_of_sprites < MAX_SPRITES_LINE)
+				number_of_sprites++;
+			memmove(&(sprites_to_render[place + 1]), &(sprites_to_render[place]), (number_of_sprites - place - 1) * sizeof(*sprites_to_render));
+			sprites_to_render[place] = current;
 		}
-
-		/* If maximum number of sprites reached, prioritise X
-		 * coordinate and object location in OAM. */
-		qsort(&sprites_to_render[0], number_of_sprites,
-				sizeof(sprites_to_render[0]), compare_sprites);
-		if(number_of_sprites > MAX_SPRITES_LINE)
-			number_of_sprites = MAX_SPRITES_LINE;
 #endif
 
 		/* Render each sprite, from low priority to high priority. */
@@ -1330,7 +1332,7 @@ void __attribute__((section(".oc_mem.il.text"))) __gb_draw_line(struct gb_s *gb)
 				uint8_t c = (t1 & 0x1) | ((t2 & 0x1) << 1);
 				// check transparency / sprite overlap / background overlap
 
-				if(c && !(OF & OBJ_PRIORITY && !((pixels[disp_x] & 0xFFFF) == selected_palette.data[LCD_PALETTE_BG >> 2][gb->display.bg_palette[0]])))
+				if((c && !(OF & OBJ_PRIORITY && !((pixels[disp_x] & 0xFFFF) == selected_palette.data[LCD_PALETTE_BG >> 2][gb->display.bg_palette[0]]))))
 				{
 					/* Set pixel colour. */
 					pixels[disp_x] = (OF & OBJ_PALETTE)

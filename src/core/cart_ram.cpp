@@ -1,7 +1,7 @@
 #include "cart_ram.h"
 
 #include <stdlib.h>
-#include <sdk/os/file.hpp>
+#include <sdk/os/file.h>
 #include "error.h"
 #include "emulator.h"
 #include "../helpers/macros.h"

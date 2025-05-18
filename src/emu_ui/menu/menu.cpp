@@ -3,9 +3,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sdk/os/lcd.hpp>
-#include <sdk/os/input.hpp>
-#include <sdk/calc/calc.hpp>
+#include <sdk/os/lcd.h>
+#include <sdk/os/input.h>
+#include <sdk/calc/calc.h>
+#include <sdk/os/mem.h>
+#include "sdk/os/debug.h"
 #include "tabs/current.h"
 #include "tabs/load.h"
 #include "tabs/saves.h"
@@ -23,11 +25,6 @@
 #include "../../helpers/functions.h"
 #include "../../helpers/fileio.h"
 
-// Use namespace because of conflicting function declarations in mem.hpp and string.h
-namespace hhk
-{
-  #include <sdk/os/mem.hpp>
-}
 
 #define MENU_DESCRIPTION_HEIGHT   37
 #define MENU_DESCRIPTION_X_OFFSET STD_CONTENT_OFFSET
@@ -290,7 +287,6 @@ menu *prepare_menu_info(menu *menu, gb_s *gb)
   {
     return nullptr;
   }
-
   if (!prepare_tab_load(&(menu->tabs[2])))
   {
     return nullptr;

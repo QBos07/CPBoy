@@ -35,7 +35,8 @@
 /*!
 	@brief Stores information about an error
 */
-extern uint8_t errno;
+#include <errno.h>
+//extern uint8_t errno;
 
 /*!
 	@brief The file in which an error occured

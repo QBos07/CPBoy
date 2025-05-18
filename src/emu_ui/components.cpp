@@ -3,22 +3,18 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sdk/calc/calc.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/calc/calc.h>
+#include <sdk/os/debug.h>
+#include <sdk/os/mem.h>
+#include <sdk/os/lcd.h>
 #include "../emu_ui/input.h"
 #include "../emu_ui/font.h"
 #include "../emu_ui/effects.h"
 #include "../emu_ui/colors.h"
 #include "../helpers/macros.h"
 
-// Use namespace because of conflicting function declarations in mem.hpp and string.h
-namespace hhk
-{
-  #include <sdk/os/mem.hpp>
-}
-
-#define CAS_LCD_WIDTH         320 
-#define CAS_LCD_HEIGHT        528 
+#define CAS_LCD_WIDTH         ::width 
+#define CAS_LCD_HEIGHT        ::height 
 
 #define SLIDER_HANDLE_WIDTH   4
 #define SLIDER_TRACK_HEIGHT   2

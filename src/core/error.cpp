@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "../emu_ui/components.h"
 #include "../emu_ui/colors.h"
 #include "../helpers/functions.h"
@@ -20,8 +21,6 @@ const char *error_messages[] = {
   ERROR_MSG_EEMUGEN,
   ERROR_MSG_ESTRBUFEMPTY,
 };
-
-uint8_t errno;
 
 char error_file[ERROR_MAX_FILE_LEN];
 char error_info[ERROR_MAX_INFO_LEN];

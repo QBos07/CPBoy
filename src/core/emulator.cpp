@@ -1,18 +1,19 @@
 #include "emulator.h"
 
+#include <cstdint>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <sdk/calc/calc.hpp>
-#include <sdk/os/file.hpp>
-#include <sdk/os/input.hpp>
-#include <sdk/os/debug.hpp>
+#include <sdk/calc/calc.h>
+#include <sdk/os/file.h>
+#include <sdk/os/input.h>
+#include <sdk/os/debug.h>
+#include <sdk/os/lcd.h>
 #include "controls.h"
 #include "cart_ram.h"
 #include "error.h"
 #include "frametimes.h"
 #include "peanut_gb.h"
-#include "../cas/display.h"
 #include "../cas/cpu/cmt.h"
 #include "../cas/cpu/cpg.h"
 #include "../cas/cpu/dmac.h"
@@ -26,7 +27,7 @@
 #define INPUT_NONE      0
 #define INPUT_OPEN_MENU 1
 
-#define STACK_PTR_ADDR  (void *)((uint32_t)Y_MEMORY_1 + (0x1000 - 4))
+#define STACK_PTR_ADDR  (void *)((uint32_t)Y_MEMORY_1 + 0x1000)
 
 /* Global arrays in OC-Memory */
 uint8_t gb_wram[WRAM_SIZE];
@@ -151,11 +152,6 @@ void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
   // Wait for previous DMA to complete
   dma_wait(DMAC_CHCR_0);
 
-  if (unlikely(line == 0))
-  {
-    prepare_gb_lcd();
-  }
-
   // When emulator will be paused, render a full frame in vram
   if (unlikely(preferences->emulator_paused))
   {
@@ -168,11 +164,14 @@ void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
     return;
   }
 
+  LCD_SetDrawingBounds(0, CAS_LCD_WIDTH - 1, line * 2, line * 2 + 1);
+  LCD_SendCommand(COMMAND_PREPARE_FOR_DRAW_DATA);
+
   // Initialize DMA settings
-  dmac_chcr tmp_chcr = { .raw = 0 };
-  tmp_chcr.TS_0 = SIZE_32_0;
-  tmp_chcr.TS_1 = SIZE_32_1;
-  tmp_chcr.DM   = DAR_FIXED_SOFT;
+  /*dmac_chcr tmp_chcr = { .raw = 0 };
+  tmp_chcr.TS_0 = SIZE_2_0;
+  tmp_chcr.TS_1 = SIZE_2_1;
+  tmp_chcr.DM   = DAR_FIXED_HARD;
   tmp_chcr.SM   = SAR_INCREMENT;
   tmp_chcr.RS   = AUTO;
   tmp_chcr.TB   = CYCLE_STEAL;
@@ -182,13 +181,21 @@ void lcd_draw_line(struct gb_s *gb, const uint32_t pixels[160],
   DMAC_CHCR_0->raw = 0;
   
   *DMAC_SAR_0   = (uint32_t)pixels;                            // P4 Area (OC-Memory) => Physical address is same as virtual
-  *DMAC_DAR_0   = (uint32_t)SCREEN_DATA_REGISTER & 0x1FFFFFFF; // P2 Area => Physical address is virtual with 3 ms bits cleared
-  *DMAC_TCR_0   = (CAS_LCD_WIDTH * 2) / 32 * 2;                // (Pixels per line * bytes per pixel) / dmac operation bytes * 2 lines      
-  *DMAC_TCRB_0  = ((CAS_LCD_WIDTH * 2 / 32) << 16) 
-    | (CAS_LCD_WIDTH * 2 / 32);
+  *DMAC_DAR_0   = (uint32_t)lcd_data_port & 0x1FFFFFFF; // P2 Area => Physical address is virtual with 3 ms bits cleared
+  *DMAC_TCR_0   = CAS_LCD_WIDTH * 2;                // (Pixels per line * bytes per pixel) / dmac operation bytes * 2 lines      
+  *DMAC_TCRB_0  = (CAS_LCD_WIDTH << 16) 
+    | CAS_LCD_WIDTH;
 
   // Start Channel 0
-  DMAC_CHCR_0->raw = tmp_chcr.raw;
+  DMAC_CHCR_0->raw = tmp_chcr.raw;*/
+  for (uint16_t i = 0; i < LCD_WIDTH; i++) {
+    *lcd_data_port = (uint16_t)pixels[i];
+    *lcd_data_port = (uint16_t)(pixels[i] >> 16);
+  }
+  for (uint16_t i = 0; i < LCD_WIDTH; i++) {
+    *lcd_data_port = (uint16_t)pixels[i];
+    *lcd_data_port = (uint16_t)(pixels[i] >> 16);
+  }
 }
 
 // Handles an error reported by the emulator. The emulator context may be used
@@ -334,13 +341,9 @@ uint8_t execute_rom(struct gb_s *gb)
       gb_tick_rtc(gb);
     }
 
-    void *tmp_stack_ptr_bak = get_stack_ptr(); 
-    set_stack_ptr(STACK_PTR_ADDR);
-
     // Run CPU until next frame
+    //on_alt_stack(STACK_PTR_ADDR, (void (*)(void *))gb_run_frame, (void *)gb);
     gb_run_frame(gb);
-
-    set_stack_ptr(tmp_stack_ptr_bak);
 
     frametime_counter_wait(gb);
 
