@@ -18,7 +18,7 @@ CXX:=sh4a_nofpueb-elf-g++
 CXX_FLAGS:=-fno-exceptions -fno-rtti -Wno-write-strings $(COMMON_FLAGS) $(INCLUDES) $(WARNINGS)
 
 LD:=$(CXX)
-LD_FLAGS:=$(COMMON_FLAGS) $(WARNINGS) -Wno-undef -Wl,--gc-sections #-fno-lto -v
+LD_FLAGS:=$(COMMON_FLAGS) $(WARNINGS) -Wl,-Ttext-segment,0x8C052800 -Wno-undef -Wl,--gc-sections #-fno-lto -v
 
 READELF:=sh4a_nofpueb-elf-readelf
 OBJCOPY:=sh4a_nofpueb-elf-objcopy
@@ -51,9 +51,9 @@ clean:
 %.hh3: %.elf
 	$(STRIP) -o $@ $^
 
-$(APP_ELF): $(OBJECTS) $(SDK_DIR)/libsdk.a linker.ld
+$(APP_ELF): $(OBJECTS) $(SDK_DIR)/libsdk.a
 	mkdir -p $(dir $@)
-	$(LD) -T linker.ld -Wl,-Map $@.map -o $@ $(LD_FLAGS) $(OBJECTS) -L$(SDK_DIR) -lsdk
+	$(LD) -Wl,-Map $@.map -o $@ $(LD_FLAGS) $(OBJECTS) -L$(SDK_DIR) -lsdk
 
 # We're not actually building sdk.o, just telling the user they need to do it
 # themselves. Just using the target to trigger an error when the file is
