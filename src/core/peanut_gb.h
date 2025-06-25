@@ -1248,10 +1248,10 @@ void __attribute__((section(".oc_mem.il.text"), noinline, optimize("Os"))) __gb_
 			uint8_t place;
 			for (place = number_of_sprites; place != 0; place--)
 			{
-				if(compare_sprites(&sprites_to_render[place - 1], &current) >= 0)
+				if(compare_sprites(&sprites_to_render[place - 1], &current) < 0)
 					break;
 			}
-			if(place > MAX_SPRITES_LINE)
+			if(place >= MAX_SPRITES_LINE)
 				continue;
 			memmove(
 				&sprites_to_render[place + 1],
